@@ -17,13 +17,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FeedingController {
     private final FeedingService feedingService;
-    private final AnimalFeedRepository animalFeedRepository;
     @PostMapping("/scheduleFeedingMoment")
     public FeedingMoment scheduleFeedingMoment(@RequestBody ScheduleFeedingMomentRequest scheduleFeedingMomentRequest) {
-        return feedingService.scheduleFeedingMoment(
+        FeedingMoment result = feedingService.scheduleFeedingMoment(
                 scheduleFeedingMomentRequest.speciesName(),
                 scheduleFeedingMomentRequest.feedingBrand(),
                 scheduleFeedingMomentRequest.caretakerName(),
                 scheduleFeedingMomentRequest.desiredMoment());
+        return result;
     }
 }

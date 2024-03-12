@@ -23,18 +23,15 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class FeedingService {
-    private final AnimalFeedRepository animalFeedRepository;
-    private final SpeciesRepository speciesRepository;
-    private final FeedingMomentRepository feedingMomentRepository;
-    private final CaretakerRepository caretakerRepository;
+    private final FeedingStoragePort feedingStoragePort;
 
     public FeedingMoment scheduleFeedingMoment(String speciesName, String feedBrand, String caretakerName, LocalDateTime desiredMoment) {
-        AnimalFeed animalFeed = animalFeedRepository.findByBrandName(feedBrand).orElseThrow(() -> new EntityNotFoundException("AnimalFeed", "brandName", feedBrand));
-        Species species = speciesRepository.findByName(speciesName).orElseThrow(() -> new EntityNotFoundException("Species", "name", speciesName));
-        Caretaker caretaker = caretakerRepository.findByName(caretakerName).orElseThrow(() -> new EntityNotFoundException("Caretaker", "name", caretakerName));
-        List<FeedingMoment> plannedFeedingMomentsForCaretaker = feedingMomentRepository.findAllByAssignedCaretaker(caretaker);
+            AnimalFeed animalFeed = feedingStoragePort.fetchAnimalFeed(feedBrand);
+            Species species = feedingStoragePort.fetchSpecies(speciesName);
+            Caretaker caretaker = feedingStoragePort.fetchCaretaker(caretakerName);
+            List<FeedingMoment> plannedFeedingMomentsForCaretaker = feedingStoragePort.getFeedingMomentsByCaretaker(caretaker);
 
-        if (!species.getAllowedFeedingProducts().contains(animalFeed)) {
+        if (foodIsNotAllowedForSpecies(species, animalFeed)) {
             throw new FoodNotAllowedException(feedBrand, speciesName);
         }
 
@@ -46,14 +43,16 @@ public class FeedingService {
             throw new CaretakerAlreadyBookedException();
         }
 
-        FeedingMoment feedingMoment = FeedingMoment.builder()
-                .feedDate(desiredMoment)
-                .animalFeed(animalFeed)
-                .species(species)
-                .assignedCaretaker(caretaker)
-                .build();
+        return feedingStoragePort.planFeedingMoment(species, caretaker, animalFeed, desiredMoment);
+    }
 
-        return feedingMomentRepository.save(feedingMoment);
+    private boolean foodIsNotAllowedForSpecies(Species species, AnimalFeed animalFeed) {
+        for (AnimalFeed allowedFood : species.getAllowedFeedingProducts()) {
+            if(allowedFood.equals(animalFeed)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean conflictingFeedingMoments(LocalDateTime desiredFeedingMoment, List<FeedingMoment> existingFeedingMoments) {
